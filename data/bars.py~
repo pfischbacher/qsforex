@@ -1,0 +1,44 @@
+class Bars(Event):
+    def __init__(self, size):
+        self.size = size
+        self.bars[self.size]
+        self.current_bar = bars[0]
+
+    def addBar(self,bar):
+        if (!len(self.bars) < self.size):
+             self.removeBar()
+        self.bars.append(bar)
+
+    def removeBar(self, index=0):
+        self.bars.remove(index)
+
+    def addToOpenBar(self, tick):
+        pass
+
+    def __repr__(self):
+        return self.bars
+
+class Bar(Event):
+
+    def __init__(self, instrument, time, bid, ask):
+        self.type = 'BAR'
+        self.instrument = instrument
+        self.time = time
+        self.open = (bid+ask)/2
+        self.close = (bid+ask)/2
+		self.high = (bid+ask)/2
+		self.low = (bid+ask)/2
+
+    def addTick(self, time, bid, ask):
+        self.close = (bid+ask)/2
+		self.high = max(self.high, self.open, self.close, (bid+ask)/2)
+		self.low = min(self.low, self.open, self.close, (bid+ask)/2)
+
+    def __str__(self):
+        return "Type: %s, Instrument: %s, Time: %s, Bid: %s, Ask: %s" % (
+            str(self.type), str(self.instrument), 
+            str(self.time), str(self.bid), str(self.ask)
+        )
+
+    def __repr__(self):
+        return str(self)

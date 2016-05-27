@@ -75,7 +75,7 @@ class Backtest(object):
                         if self.startdate < event.time and event.time <= self.enddate:
                             #pass
                             self.strategy.on_tick(event)
-                            #self.portfolio.update_portfolio(event)
+                            self.portfolio.update_portfolio(event)
                     """Want to remove and let the strategy class do the signal and orderhandling.
                     elif event.type == 'BAR':
                         self.strategy.calculate_signals(event)

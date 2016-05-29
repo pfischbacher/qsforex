@@ -1,4 +1,5 @@
 from __future__ import print_function
+import os
 import timeit
 from datetime import datetime
 from qsforex.backtest.backtest import Backtest
@@ -8,6 +9,9 @@ from qsforex import settings
 from qsforex.strategy.arima_garch_strategy import ArimaGarchStrategy as AGS
 from qsforex.data.price import HistoricCSVPriceHandler
 
+
+os.environ["QSFOREX_CSV_DIR"] = "data/historicaldata"
+os.environ["QSFOREX_OUTPUT_RESULTS_DIR"] = "data/results" 
 
 if __name__ == "__main__":
     # Trade on GBP/USD and EUR/USD

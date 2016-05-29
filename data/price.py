@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import datetime
+from datetime import datetime
 from decimal import Decimal, getcontext, ROUND_HALF_DOWN
 import os
 import os.path
@@ -81,7 +82,7 @@ class HistoricCSVPriceHandler(PriceHandler):
     to the provided events queue.
     """
 
-    def __init__(self, pairs, events_queue, csv_dir):
+    def __init__(self, pairs, events_queue, csv_dir, startdate, enddate):
         """
         Initialises the historic data handler by requesting
         the location of the CSV files and a list of symbols.
@@ -100,19 +101,53 @@ class HistoricCSVPriceHandler(PriceHandler):
         self.csv_dir = csv_dir
         self.prices = self._set_up_prices_dict()
         self.pair_frames = {}
-        self.file_dates = self._list_all_file_dates()
+        self.startdate = startdate
+        self.enddate = enddate
+        self.file_dates = self._select_file_dates()
+        print("price.py", "File Dates", self.file_dates)
         self.continue_backtest = True
         self.cur_date_idx = 0
-        self.cur_date_pairs = self._open_convert_csv_files_for_day(
+        #print('PRICE.PY FILES DATES', self.file_dates)
+        #print('Price.py Current File Date', self.file_dates[self.cur_date_idx])
+        #self.cur_date_pairs = self._open_convert_csv_files_for_day(
+        #    self.file_dates[self.cur_date_idx]
+        #)
+        self.cur_date_pairs = self._open_convert_csv_files_for_year(
             self.file_dates[self.cur_date_idx]
         )
+        
 
     def _list_all_csv_files(self):
-        files = os.listdir(settings.CSV_DATA_DIR)
-        pattern = re.compile("[A-Z]{6}_\d{8}.csv")
-        matching_files = [f for f in files if pattern.search(f)]
+        print('price.py Pairs', self.pairs)
+        for pair in self.pairs:
+            """for root, dirs, files in os.walk(os.path.join(settings.CSV_DATA_DIR, pair)):
+                for name in files:
+                
+            files = os.listdir(os.path.join(settings.CSV_DATA_DIR, pair))"""
+            files = self._get_files(pair)
+            pattern = re.compile("^[A-Z]{6}_\d{4}.csv$")
+            #pattern = re.compile("^[A-Z]{6}_\d{8}.csv$")
+            matching_files = [f for f in files if pattern.search(f)]
+        #print('price.py LIST ALL MATCHING FILES', matching_files)
         matching_files.sort()
-        return matching_files
+        return (matching_files)
+
+    def _get_files(self, pair):
+         #return(os.walk(os.path.join(settings.CSV_DATA_DIR, pair)))
+         return (os.listdir(os.path.join(settings.CSV_DATA_DIR, pair)))
+
+    def _select_file_dates(self):
+        results = []
+        print("price.py", "All Files Dates", self._list_all_file_dates())
+        for filedate in self._list_all_file_dates():
+            #filetime = datetime.strptime(filedate, "%Y%m%d")
+            #filetime = datetime.strptime(filedate, "%Y")
+            filetime = datetime(int(filedate), 1, 1)
+            #if self.startdate <= filetime and filetime <= self.enddate:
+            results.append(filedate)
+
+        return (results)
+           
 
     def _list_all_file_dates(self):
         """
@@ -125,6 +160,26 @@ class HistoricCSVPriceHandler(PriceHandler):
         de_dup_csv.sort()
         return de_dup_csv
 
+    def _open_convert_csv_files_for_year(self, year_str):
+        """
+        Opens the CSV files from the data directory, converting
+        them into pandas DataFrames within a pairs dictionary.
+        
+        The function then concatenates all of the separate pairs
+        for a single day into a single data frame that is time 
+        ordered, allowing tick data events to be added to the queue 
+        in a chronological fashion.
+        """
+        for p in self.pairs:
+            pair_path = os.path.join(self.csv_dir, p, '%s_%s.csv' % (p, year_str))
+            self.pair_frames[p] = pd.io.parsers.read_csv(
+                pair_path, header=False, index_col=0, 
+                parse_dates=True, dayfirst=True,
+                names=("Time", "Ask", "Bid", "AskVolume", "BidVolume")
+            )
+            self.pair_frames[p]["Pair"] = p
+        return pd.concat(self.pair_frames.values()).sort().iterrows()
+        
     def _open_convert_csv_files_for_day(self, date_str):
         """
         Opens the CSV files from the data directory, converting
@@ -136,7 +191,7 @@ class HistoricCSVPriceHandler(PriceHandler):
         in a chronological fashion.
         """
         for p in self.pairs:
-            pair_path = os.path.join(self.csv_dir, '%s_%s.csv' % (p, date_str))
+            pair_path = os.path.join(self.csv_dir, p, '%s_%s.csv' % (p, date_str))
             self.pair_frames[p] = pd.io.parsers.read_csv(
                 pair_path, header=True, index_col=0, 
                 parse_dates=True, dayfirst=True,

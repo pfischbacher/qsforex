@@ -14,29 +14,37 @@ class Backtest(object):
     Enscapsulates the settings and components for carrying out
     an event-driven backtest on the foreign exchange markets.
     """
+	#max_iters=10000000000
     def __init__(
-        self, pairs, data_handler, strategy, 
-        strategy_params, portfolio, execution, 
-        equity=100000.0, heartbeat=0.0, 
+        self, portfolio, pairs, startdate, enddate, data_handler,
+        strategy, 
+        strategy_params, execution, 
+        equity=1000.0, heartbeat=0.0, 
         max_iters=10000000000
     ):
         """
         Initialises the backtest.
         """
+        self.portfolio = portfolio
         self.pairs = pairs
         self.events = queue.Queue()
         self.csv_dir = settings.CSV_DATA_DIR
-        self.ticker = data_handler(self.pairs, self.events, self.csv_dir)
+        self.ticker = data_handler(self.pairs, self.events, self.csv_dir, startdate, enddate)
+        self.startdate = startdate
+        self.enddate = enddate
         self.strategy_params = strategy_params
-        self.strategy = strategy(
-            self.pairs, self.events, **self.strategy_params
-        )
         self.equity = equity
         self.heartbeat = heartbeat
         self.max_iters = max_iters
-        self.portfolio = portfolio(
+        """self.portfolio = portfolio(
             self.ticker, self.events, equity=self.equity, backtest=True
-        )
+        )"""
+        
+        for pair in self.pairs:
+            self.portfolio.add_pair(pair)
+            self.strategy = strategy(
+                self.portfolio, pair, self.events, **self.strategy_params
+            )
         self.execution = execution()
 
     def _run_backtest(self):
@@ -50,20 +58,34 @@ class Backtest(object):
         """
         print("Running Backtest...")
         iters = 0
-        while iters < self.max_iters and self.ticker.continue_backtest:
+        #while iters < self.max_iters and self.ticker.continue_backtest:
+        for i in xrange(self.max_iters):
             try:
                 event = self.events.get(False)
             except queue.Empty:
                 self.ticker.stream_next_tick()
+                if not self.ticker.continue_backtest:
+                    break
+            except KeyboardInterrupt:
+                break
             else:
                 if event is not None:
                     if event.type == 'TICK':
+                        #self.strategy.calculate_signals(event)
+                        if self.startdate < event.time and event.time <= self.enddate:
+                            #pass
+                            self.strategy.on_tick(event)
+                            #self.portfolio.update_portfolio(event)
+                    """Want to remove and let the strategy class do the signal and orderhandling.
+                    elif event.type == 'BAR':
                         self.strategy.calculate_signals(event)
                         self.portfolio.update_portfolio(event)
                     elif event.type == 'SIGNAL':
-                        self.portfolio.execute_signal(event)
+                        print('Execute Signal')
+                        #self.portfolio.execute_signal(event)
                     elif event.type == 'ORDER':
                         self.execution.execute_order(event)
+                    """    
             time.sleep(self.heartbeat)
             iters += 1
 
@@ -79,5 +101,5 @@ class Backtest(object):
         Simulates the backtest and outputs portfolio performance.
         """
         self._run_backtest()
-        self._output_performance()
+        #self._output_performance()
         print("Backtest complete.")

@@ -1,8 +1,13 @@
 import copy
+import os
+
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_DOWN, ROUND_HALF_UP
 import pandas as pd
 #from collections import defaultdict
+from qsforex.settings import CSV_DATA_DIR
+from qsforex.settings import HISTORICALDATA_DIR
+from qsforex.settings import OUTPUT_RESULTS_DIR
 
 from qsforex.event.event import SignalEvent
 from qsforex.event.timeframe import Timeframe
@@ -67,7 +72,8 @@ class ArimaGarchStrategy(object):
         return 1
     
     def get_file(self):
-        file_path = os.path.join(self.csv_dir, p, '%s_%s.csv' % (p, year_str))
+        self.csv_dir = 'Oanda_EURUSD_D1.csv'
+        file_path = os.path.join(CSV_DATA_DIR, self.csv_dir)
         file = pd.io.parsers.read_csv(
                 file_path, header=False, index_col=0, 
                 parse_dates=True, dayfirst=True,

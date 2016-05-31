@@ -133,8 +133,8 @@ class HistoricCSVPriceHandler(PriceHandler):
         return (matching_files)
 
     def _get_files(self, pair):
-         #return(os.walk(os.path.join(settings.CSV_DATA_DIR, pair)))
-         return (os.listdir(os.path.join(settings.CSV_DATA_DIR, pair)))
+         #return(os.walk(os.path.join(settings.HISTORICALDATA_DIR, pair)))
+         return (os.listdir(os.path.join(settings.HISTORICALDATA_DIR, pair)))
 
     def _select_file_dates(self):
         results = []

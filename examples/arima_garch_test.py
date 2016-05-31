@@ -74,3 +74,26 @@ for d in range(0,foreLength):
         break
 
     print 'Final Order=', final_order
+    
+#Fit Garch(1,1)    
+spec = ugarchspec(
+                 variance.model=list(garchOrder=c(1,1)),
+                 mean.model=list(armaOrder=c(final.order[1], final.order[3]), include.mean=T),
+                 distribution.model="sged")
+     
+     fit = tryCatch(
+       ugarchfit(
+         spec, spReturnsOffset, solver = 'hybrid'
+       ), error=function(e) e, warning=function(w) w
+     )
+     
+     
+def GARCH11_logL(param, data_set):
+    omega, alpha, beta = param
+    n = len(data_set)
+    s = np.ones(n)*0.01
+    s[2] = st.variance(r[0:3])
+    for i in range(3, n):
+        s[i] = omega + alpha*data_set[i-1]**2 + beta*(s[i-1])  # GARCH(1,1) model
+    logL = -((-np.log(s) - data_set**2/s).sum())
+    return logL

@@ -28,7 +28,7 @@ class Backtest(object):
         self.portfolio = portfolio
         self.pairs = pairs
         self.events = queue.Queue()
-        self.csv_dir = settings.CSV_DATA_DIR
+        self.csv_dir = settings.HISTORICALDATA_DIR
         self.ticker = data_handler(self.pairs, self.events, self.csv_dir, startdate, enddate)
         self.startdate = startdate
         self.enddate = enddate

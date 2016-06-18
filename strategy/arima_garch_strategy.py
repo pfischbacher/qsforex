@@ -21,7 +21,7 @@ class ArimaGarchStrategy(object):
     def __init__(
         self, portfolio, pair, events,
         starttime, endtime,
-        lots = 0.1,
+        lots = 0.01,
         leverage = 10,
         currency_factor = 1,
         max_orders = 2,
@@ -45,6 +45,7 @@ class ArimaGarchStrategy(object):
         self.custom_spread = 5
         self.positions = []
         
+        self.forecasts = self.get_file()
         self.last_time_check = datetime(2010,1,1)
         self.open_orders = 0
         self.total_orders = 0
@@ -57,6 +58,7 @@ class ArimaGarchStrategy(object):
 
 
     def on_tick(self, event):
+        #print(__file__, 'Event=', event)
         if event.type == 'TICK':
             self.process_tick(event)
         
@@ -64,23 +66,26 @@ class ArimaGarchStrategy(object):
         self.check_positions()
         
     def check_for_trade(self, event):
+        self.row = self.forecasts.loc[self.last_bar.time]
+ 
         if self.check_interval():
-            self.get_file();
-            self.create_order(self.check_direction)
+            #self.create_order(self.check_direction)
+            print(__file__, 'Row Direction=', self.row['Direction'])
+            self.create_order(-self.row['Direction'],200)
     
     def check_direction(self):
         return 1
     
     def get_file(self):
-        self.csv_dir = 'Oanda_EURUSD_D1.csv'
-        file_path = os.path.join(CSV_DATA_DIR, self.csv_dir)
-        file = pd.io.parsers.read_csv(
+        filename = 'forecasts_Oanda_EURUSD_D1_2.csv'
+        file_path = os.path.join(CSV_DATA_DIR, filename)
+        result = pd.io.parsers.read_csv(
                 file_path, header=False, index_col=0, 
                 parse_dates=True, dayfirst=True,
-                names=("Date", "Direction")
+                names=("Direction", "Sigma")
         )
-        print ('arima_garch_strategy.py', 'FILE DATA=', file);
-        return file
+        #print (__file__, 'FILE DATA=', result)
+        return result
         
     def check_positions(self):
         for p in self.positions:
@@ -88,19 +93,19 @@ class ArimaGarchStrategy(object):
 
             if (p.state == "closed"):
                 self.close_position(p)
-            
-    def create_order(self, order_type=1):
+            if p.order_type == self.row['Direction']:
+                print(__file__, 'CLOSE POSITION')
+                self.close_position(p)
+
+    def create_order(self, order_type=1, sigma=0):
         self.lots = self.calculate_lots()
-        print('arima_garch_strategy.py', 'TRADE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        self.set_order_conditions()
-        if order_type == 1:
-            ps = Position(self.pair, "long", self.current_tick, self.lots, len(self.positions), self.take_profit, self.stop_loss, self.trailing_stop)
-        elif order_type == -1:
-            ps = Position(self.pair, "short", self.current_tick, self.lots, len(self.positions), self.take_profit, self.stop_loss, self.trailing_stop)
+        print(__file__, 'TRADE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        self.set_order_conditions(sigma)
+        ps = Position(self.pair, order_type, self.current_tick, self.lots, len(self.positions), self.take_profit, self.stop_loss, self.trailing_stop)
         self.positions.append(ps)
         self.total_orders +=1
         self.open_orders = len(self.positions)   
-        print('arima_garch_strategy.py','Total Orders', self.total_orders, 'Open Orders', self.open_orders)
+        print(__file__,'Total Orders', self.total_orders, 'Open Orders', self.open_orders)
     
     def add_new_position(self, position):
         current_index = len(self.positions)
@@ -108,6 +113,7 @@ class ArimaGarchStrategy(object):
 
     def close_position(self, position):
         ps = self.positions[position.index]
+        ps.close_position(self.current_tick.bid, self.current_tick.time, "Strategy Close")
         self.portfolio.update_portfolio(self.pair, ps)
         del[self.positions[position.index]]
         self.open_orders = len(self.positions)
@@ -132,7 +138,7 @@ class ArimaGarchStrategy(object):
         self.current_tick = tick
         self.spread = self.get_spread(tick)
 
-    def set_order_conditions(self):        
+    def set_order_conditions(self, sigma):    
         self.take_profit = 0
         self.stop_loss =  0
         self.trailing_stop = 0
@@ -141,6 +147,7 @@ class ArimaGarchStrategy(object):
     def check_interval(self):
         result = False
         last_bar = self.custom_time.getLastBar()
+        #print(__file__, 'Last Bar Time=', last_bar.time)
         if last_bar.time - self.last_time_check >= self.period:
             result = True
             self.last_time_check = last_bar.time
@@ -179,8 +186,8 @@ class ArimaGarchStrategy(object):
         return result
     
     def calculate_lots(self):
-        return (self.portfolio.balance/10000).quantize(Decimal("0.01"), ROUND_HALF_DOWN)
-        #return self.lots
+        #return (self.portfolio.balance/10000).quantize(Decimal("0.01"), ROUND_HALF_DOWN)
+        return self.lots
 
        
     #Not sure how to add/remove lots to a position, need to look into this more.

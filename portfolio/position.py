@@ -3,11 +3,12 @@ from qsforex import settings
 
 class Position(object):
     def __init__(
-        self, pair, position_type, open_tick, lots, position_index,
+        self, pair, order_type, open_tick, lots, position_index,
         take_profit = 0, stop_loss = 0, trailing_stop = 0
     ):
         #self.home_currency = home_currency  # Account denomination (e.g. GBP)
-        self.position_type = position_type  # Long or short
+        self.order_type = order_type
+        self.position_type = self.get_position_type()  # Long or short
         self.pair = pair  # Intended traded currency pair
         self.open_time = open_tick.time
         self.open_price = self.get_price(open_tick)
@@ -16,6 +17,8 @@ class Position(object):
         self.take_profit = take_profit
         self.stop_loss = stop_loss
         self.trailing_stop = trailing_stop
+        self.take_profit_limit = None
+        self.stop_loss_limit = None
         self.set_up_currencies()
         self.state = "open"
         self.start_trailing_stop = False
@@ -25,6 +28,13 @@ class Position(object):
         #self.profit_perc = self.calculate_profit_perc()
         
         
+    def get_position_type(self):
+        if self.order_type == -1:
+            result = "short"
+        else:
+            result = "long"
+        return result
+
     def get_price(self, tick):
         result = 0
         if self.position_type == "long":
@@ -71,11 +81,15 @@ class Position(object):
         )
     
     def init_conditions(self):
+        self.pnl = 0
+        self.close_time = None
+        self.close_type = None
         self.set_stop_loss()
         self.set_take_profit()
         
     def set_stop_loss(self):
         if self.stop_loss > 0:
+            print(__file__, 'STOP LOSS=', self.stop_loss)
             if self.position_type == "long":
                 self.stop_loss_limit = self.open_price - self.stop_loss * self.ticksize
             elif self.position_type == "short":
@@ -163,7 +177,7 @@ class Position(object):
         self.close_time = time
         self.close_type = close_type
         self.pnl = self.unrealize_pnl
-        #print("Position.py", "pnl", self.pnl, "Close Type", close_type)   
+        print(__file__, "pnl", self.pnl, "Close Type", close_type)   
         self.state = "closed"
         self.unrealize_pnl = 0
             
